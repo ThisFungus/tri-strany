@@ -41,14 +41,16 @@
     return prev[n];
   }
 
-  // Diacritics, case, spacing ignored; 1 typo allowed from 5 letters, 2 from 9.
-  function isCorrect(text, answers) {
+  // Diacritics, case, spacing ignored; 1 typo allowed from 5 letters. `rejects` lists real words one typo away
+  // (Slovinsko for Slovensko) that must not pass as typos.
+  function isCorrect(text, answers, rejects) {
     const t = norm(text).replace(/ /g, '');
     if (!t) return false;
+    if ((rejects || []).some(r => norm(r).replace(/ /g, '') === t)) return false;
     return answers.some(a => {
       const n = norm(a).replace(/ /g, '');
       if (t === n) return true;
-      const tol = n.length <= 4 ? 0 : n.length <= 8 ? 1 : 2;
+      const tol = n.length <= 4 ? 0 : 1;
       return Math.abs(t.length - n.length) <= tol && lev(t, n) <= tol;
     });
   }
@@ -87,7 +89,7 @@
     if (mode === 'final') {
       return FINAL_LETTERS.map((l, i) => {
         const q = pool.find(x => initial(x[1][0]) === l) || pool[i];
-        return { n: i + 1, l: initial(q[1][0]), q: q[0], a: q[1], o: null };
+        return { n: i + 1, l: initial(q[1][0]), q: q[0], a: q[1], x: q[2] || [], o: null };
       });
     }
     const picked = [], letters = new Set();
@@ -97,7 +99,7 @@
       if (!letters.has(l)) { letters.add(l); picked.push(q); }
     }
     for (const q of pool) { if (picked.length === CELLS.length) break; if (!picked.includes(q)) picked.push(q); }
-    return shuffle(picked).map((q, i) => ({ n: i + 1, l: initial(q[1][0]), q: q[0], a: q[1], o: null }));
+    return shuffle(picked).map((q, i) => ({ n: i + 1, l: initial(q[1][0]), q: q[0], a: q[1], x: q[2] || [], o: null }));
   }
 
   function newGame({ code, host, settings, bank, used, now }) {
@@ -150,12 +152,12 @@
     if (state.status !== 'playing' || !c || actor !== c.answerer) return null;
     const s = clone(state), sc = s.cur, t = String(text || '').trim().slice(0, 80);
     if (state.phase === 'answer') {
-      const ok = isCorrect(t, sc.a || s.board[sc.i].a);
+      const ok = isCorrect(t, s.board[sc.i].a, s.board[sc.i].x);
       sc.attempts.push({ p: actor, text: t, ok, over: false });
       if (ok) toReveal(s, now);
       else { s.phase = 'steal'; sc.answerer = other(actor); sc.deadline = now + s.settings.stealSec * 1000; }
     } else if (state.phase === 'steal') {
-      sc.attempts.push({ p: actor, text: t, ok: isCorrect(t, s.board[sc.i].a), over: false });
+      sc.attempts.push({ p: actor, text: t, ok: isCorrect(t, s.board[sc.i].a, s.board[sc.i].x), over: false });
       toReveal(s, now);
     } else if (state.phase === 'yesno') {
       sc.attempts.push({ p: actor, text: t, ok: t !== '' && (t === 'ano') === sc.yes, over: false });

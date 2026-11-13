@@ -14,7 +14,7 @@
   const S = {
     db: undefined, user: null, myId: null, mode: 'lobby', game: null,
     unsubGame: null, unsubLobby: null, chain: Promise.resolve(), readOnly: false,
-    lobbyGames: null, confirmed: null, prevGame: null, tickKey: '', p2p: false, pending: 0, renderedKey: '', timeoutRev: -1, loadTimer: null,
+    lobbyGames: null, confirmed: null, prevGame: null, tickKey: '', draftKey: '', seenAt: {}, p2p: false, pending: 0, renderedKey: '', timeoutRev: -1, loadTimer: null,
   };
   S.myId = LS.get('ts-id', null);
   if (!S.myId) { S.myId = 'l_' + Math.random().toString(36).slice(2, 12); LS.set('ts-id', S.myId); }
@@ -160,24 +160,31 @@
   }
 
   // ---------- game open / create ----------
-  function openGame(code, initial) {
+  // P2P links must name the room (the first game's code); later rematch codes are only reachable through it.
+  function setHash(code) {
+    const h = '#' + (S.p2p ? window.TS_P2P.roomOf(code) : code);
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+
+  function openGame(code, initial, following) {
     code = String(code || '').toUpperCase();
     if (!S.db || !/^[A-Z0-9]{5}$/.test(code)) { toast('Neplatný kód hry.'); return; }
     if (S.unsubLobby) { S.unsubLobby(); S.unsubLobby = null; }
     if (S.unsubGame) S.unsubGame();
     S.mode = 'online'; S.game = initial || null; S.renderedKey = '';
     $('lobby').hidden = true; $('game').hidden = false;
-    if (location.hash !== '#' + code) history.replaceState(null, '', '#' + code);
+    setHash(code);
     if (initial) commit(initial); else renderGame(true);
     let seen = false;
     const t = setTimeout(() => { if (!seen && !S.game) $('phase').innerHTML = '<p class="hint">Hru se zatím nedaří načíst. Zkontroluj připojení.</p>'; }, 10000);
     S.unsubGame = S.db.doc('games/' + code).onSnapshot(snap => {
       seen = true; clearTimeout(t);
-      if (!snap.exists) { if (!S.game) $('phase').innerHTML = '<p class="hint">Hra s tímto kódem neexistuje.</p>'; return; }
+      if (!snap.exists) { if (!S.game && !following) $('phase').innerHTML = '<p class="hint">Hra s tímto kódem neexistuje.</p>'; return; }
       const g = snap.data();
       if (S.pending && S.game && S.game.code === code && g.rev < S.game.rev) return; // our newer write is still in flight
       S.game = g; S.confirmed = g;
-      if (g.next) { openGame(g.next); return; }
+      if (g.next) { openGame(g.next, null, true); return; }
+      setHash(code);
       renderGame();
     }, () => { clearTimeout(t); $('phase').innerHTML = '<p class="hint">Spojení se hrou se přerušilo. Vrať se do seznamu her a otevři ji znovu.</p>'; });
   }
@@ -207,7 +214,8 @@
     const ng = G.rematch(g, code, Date.now(), Q.open, usedSet());
     if (S.mode === 'local') { S.game = ng; S.renderedKey = ''; renderGame(true); return; }
     const old = JSON.parse(JSON.stringify(g)); old.next = code; old.rev += 1; old.updatedAt = Date.now();
-    S.chain = S.chain.then(async () => { if (await writeState(ng)) await writeState(old); });
+    // Link first: if both players press Odveta, only the rev-checked link write wins, so no orphan game is created.
+    S.chain = S.chain.then(async () => { if (await writeState(old)) await writeState(ng); });
   }
 
   // ---------- board ----------
@@ -382,10 +390,13 @@
     window.TS_SOUND.play(cueFor(S.prevGame, g));
     S.prevGame = g;
     const draft = $('ans') && $('ans').value;
+    const draftKey = g.cur ? `${g.code}|${g.phase}|${g.cur.i}|${g.cur.answerer}` : '';
+    const keepDraft = draft && (force || draftKey === S.draftKey);
+    S.draftKey = draftKey;
     renderBoard(g); renderPlayers(g); renderLog(g);
     $('phase').innerHTML = phaseHTML(g);
     const inp = $('ans');
-    if (inp) { if (draft && force) inp.value = draft; inp.focus({ preventScroll: true }); }
+    if (inp) { if (keepDraft) inp.value = draft; inp.focus({ preventScroll: true }); }
     tick();
   }
 
@@ -411,10 +422,19 @@
   }
 
   // ---------- timer + timeouts ----------
+  // Deadlines come from the writer's clock. Each client times the phase from when it first saw that state
+  // (duration = deadline - updatedAt, both writer clock), so clock differences between players don't matter.
+  // A reload mid-phase restarts this client's view of the countdown.
+  function localDeadline(g) {
+    const key = `${g.code}:${g.rev}:${g.updatedAt}`;
+    if (!S.seenAt[key]) { S.seenAt = { [key]: Date.now() }; }
+    return S.seenAt[key] + (g.cur.deadline - g.updatedAt);
+  }
+
   function tick() {
     const g = S.game;
     if (!g || S.mode === 'lobby' || g.status !== 'playing' || !g.cur) return;
-    const left = g.cur.deadline - Date.now(), total = phaseSeconds(g) * 1000;
+    const left = localDeadline(g) - Date.now(), total = phaseSeconds(g) * 1000;
     const fill = $('tfill'), secs = $('tsecs');
     if (fill) fill.setAttribute('x2', `${Math.max(0, Math.min(1, left / total)) * 100}%`);
     if (secs) secs.textContent = `${Math.max(0, Math.ceil(left / 1000))} s`;
@@ -426,7 +446,7 @@
     else grace = myRole(g) === (g.phase === 'reveal' ? g.turn : g.cur.answerer) ? 0 : OTHER_GRACE;
     if (left + grace > 0 || S.timeoutRev === `${g.code}:${g.rev}`) return;
     S.timeoutRev = `${g.code}:${g.rev}`;
-    dispatch(G.timeout(g, Date.now()));
+    dispatch(G.timeout(g, Math.max(Date.now(), g.cur.deadline)));
   }
   setInterval(tick, 200);
 

@@ -73,8 +73,9 @@
   function teardown() {
     gen++;
     clearInterval(pinger);
-    if (peer) peer.destroy();
+    const old = peer;
     peer = null; hostConn = null; role = null; room = null;
+    if (old) old.destroy(); // after clearing `peer`, so its 'close' handler sees it is no longer current
     conns.clear();
     Object.keys(docs).forEach(k => delete docs[k]);
   }
@@ -92,21 +93,25 @@
     Object.keys(docs).forEach(p => rememberRoom(codeOf(p)));
     saveRoom();
     pinger = setInterval(() => conns.forEach(c => { if (c.open) c.send({ t: 'ping' }); }), PING_MS);
-    peer = new Peer(PREFIX + code);
-    keepSignalling(peer);
-    peer.on('open', () => status(''));
-    peer.on('connection', conn => {
+    const p = peer = new Peer(PREFIX + code);
+    keepSignalling(p);
+    // PeerJS destroys a peer whose first server contact fails (also on unavailable-id); start over as a guest,
+    // which reaches a live host or falls back to hosting the saved room.
+    p.on('close', () => { if (p === peer) later(() => join(code), RETRY_MS); });
+    p.on('open', () => status(''));
+    p.on('connection', conn => {
       conn.on('open', () => conns.add(conn));
       conn.on('close', () => conns.delete(conn));
       conn.on('data', m => {
         if (!m || !isStr(m.path) || !/^games\/[A-Z0-9]{5}$/.test(m.path)) return;
-        if (m.t === 'sub' && docs[m.path]) conn.send({ t: 'doc', path: m.path, data: docs[m.path] });
+        // force: the guest must take this even if its optimistic copy is newer (rejected or lost write).
+        if (m.t === 'sub' && docs[m.path]) conn.send({ t: 'doc', path: m.path, data: docs[m.path], force: true });
         if (m.t === 'set' && !(validDoc(m.path, m.data) && accept(m.path, m.data)) && docs[m.path]) {
-          conn.send({ t: 'doc', path: m.path, data: docs[m.path] });
+          conn.send({ t: 'doc', path: m.path, data: docs[m.path], force: true });
         }
       });
     });
-    peer.on('error', e => {
+    p.on('error', e => {
       // Someone (often our own previous page, until the server notices it left) holds the room id: be a guest instead.
       if (e.type === 'unavailable-id') { status('Obnovuji hru, chvilku strpení…'); later(() => join(code), RETRY_MS); }
       else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) status('Výpadek spojení se serverem pro propojení hráčů. Zkouším to znovu.');
@@ -127,6 +132,7 @@
     };
     pinger = setInterval(() => { if (hostConn && Date.now() - lastSeen > STALE_MS) drop(); }, PING_MS);
     keepSignalling(p);
+    p.on('close', () => { if (p === peer) later(() => join(code), RETRY_MS); });
     p.on('open', () => connect());
     p.on('error', e => {
       if (e.type !== 'peer-unavailable') return;
@@ -146,6 +152,7 @@
       conn.on('data', m => {
         lastSeen = Date.now();
         if (!m || m.t !== 'doc' || !isStr(m.path) || !validDoc(m.path, m.data)) return;
+        if (!m.force && docs[m.path] && m.data.rev < docs[m.path].rev) return; // stale echo behind our optimistic copy
         docs[m.path] = m.data; rememberRoom(codeOf(m.path)); emit(m.path);
       });
       conn.on('close', () => { if (hostConn === conn) drop(); });
@@ -204,6 +211,7 @@
     db: { doc },
     claimId,
     create: code => host(code),
+    roomOf,
     onStatus(fn) { statusFn = fn; },
     // Links always name the room, so a friend's fresh browser reaches the host and then follows `next`.
     linkFor: code => location.origin + location.pathname + '#' + roomOf(code),

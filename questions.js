@@ -1,4 +1,4 @@
-// Question bank. open: [clue, [canonical answer, ...accepted variants]]; the field letter is derived
+// Question bank. open: [clue, [canonical answer, ...accepted variants], [rejected near-misses]?]; the field letter is derived
 // from the canonical answer (CH, Č, Ř, Š, Ž count as own letters). yesno: [question, true = "ano"].
 window.TS_Q = {
   open: [
@@ -96,7 +96,7 @@ window.TS_Q = {
     ['Strunný nástroj se šesti strunami', ['Kytara']],
     ['Země, jejímž hlavním městem je Ottawa', ['Kanada']],
     ['Největší jezero světa (dvě slova)', ['Kaspické moře', 'Kaspicke more']],
-    ['Panovník, který roku 1348 založil univerzitu v Praze', ['Karel IV.', 'Karel IV', 'Karel ctvrty', 'Karel']],
+    ['Panovník, který roku 1348 založil univerzitu v Praze', ['Karel IV.', 'Karel IV', 'Karel 4', 'Karel čtvrtý'], ['Karel V', 'Karel I', 'Karel 5', 'Karel 1']],
     ['Plyn, který dýcháme, se značkou O', ['Kyslík']],
     ['Australský vačnatec skákající po zadních nohou', ['Klokan']],
     ['Učitel národů, autor Orbis pictus', ['Komenský', 'Jan Amos Komenský']],
@@ -150,8 +150,8 @@ window.TS_Q = {
     ['Trpasličí planeta, do roku 2006 devátá planeta', ['Pluto']],
     ['Černobílý medvěd z Číny, který jí bambus', ['Panda', 'panda velká']],
     ['Pohádková dívka se třemi oříšky', ['Popelka']],
-    ['Největší stát světa rozlohou', ['Rusko']],
-    ['Řeka protékající Kolínem nad Rýnem', ['Rýn', 'Ryn', 'Rhein']],
+    ['Největší stát světa rozlohou', ['Rusko'], ['Prusko']],
+    ['Řeka, na které leží Basilej, Štrasburk a Bonn', ['Rýn', 'Ryn', 'Rhein']],
     ['Země, jejímž hlavním městem je Vídeň', ['Rakousko']],
     ['Slovo, které vymyslel Josef Čapek', ['Robot']],
     ['Nizozemský malíř Noční hlídky', ['Rembrandt']],
@@ -172,7 +172,7 @@ window.TS_Q = {
     ['Největší horká poušť světa', ['Sahara']],
     ['Největší ostrov Středozemního moře', ['Sicílie', 'Sicilie']],
     ['Autor Hamleta a Romea a Julie', ['Shakespeare', 'William Shakespeare', 'Sekspir']],
-    ['Země, jejímž hlavním městem je Bratislava', ['Slovensko']],
+    ['Země, jejímž hlavním městem je Bratislava', ['Slovensko'], ['Slovinsko']],
     ['Hlavní město Švédska', ['Stockholm', 'Stokholm']],
     ['Hlavní město Bulharska', ['Sofie', 'Sofia']],
     ['Tělocvičný spolek založený Tyršem a Fügnerem', ['Sokol']],
