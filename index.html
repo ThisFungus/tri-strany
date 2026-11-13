@@ -1,0 +1,196 @@
+<title>Tři strany</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
+<style>
+/* Layout: 12-column grid, board spans 7, side panel 5; single dark theme on purpose (house style). */
+:root {
+  --bg-page: #191919; --bg-panel: #242320; --bg-control: #2d2b28; --bg-hover: #343330;
+  --border: #3b3936; --border-strong: #65635f;
+  --text-hint: #9b9893; --text-secondary: #c0bdb8; --text-body: #d5d2ce; --text-primary: #ebe9e5;
+  --accent-fill: #82623f; --accent-text: #d9b795; --error: #df8074;
+  --p-a: var(--accent-fill); --p-b: var(--text-primary); --on-b: var(--bg-page);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 6px;
+  color-scheme: dark;
+}
+html, body { background: var(--bg-page); color: var(--text-primary); }
+body {
+  font: 400 14px/20px var(--font); font-feature-settings: "cv02";
+  padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 24px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.c5 { grid-column: span 5; } .c7 { grid-column: span 7; }
+@media (max-width: 900px) { .c5, .c7 { grid-column: 1 / -1; } }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; display: grid; gap: 16px; min-width: 0; }
+.label { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-hint); }
+.title { font-size: 22px; line-height: 28px; letter-spacing: -.01em; margin: 0; font-weight: 400; text-wrap: balance; }
+.figure { font-size: 40px; line-height: 44px; font-weight: 300; letter-spacing: -.02em; margin: 0; }
+.read { font-size: 16px; line-height: 26px; color: var(--text-body); max-width: 70ch; margin: 0; }
+.hint { color: var(--text-hint); margin: 0; }
+.sec { color: var(--text-secondary); }
+.err { color: var(--error); }
+.acc { color: var(--accent-text); }
+.num { font-feature-settings: "tnum", "cv02"; }
+p { margin: 0; }
+
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+header.top .brand { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+
+.btn {
+  font: inherit; color: var(--text-primary); background: var(--bg-control); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 8px 16px; cursor: pointer; transition: background 120ms ease-out;
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); }
+.btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); }
+.btn.primary:hover:not(:disabled) { background: var(--accent-fill); border-color: var(--accent-text); }
+.btn.ghost { background: transparent; }
+.btn:disabled { color: var(--border-strong); cursor: default; }
+.btn:focus-visible, input:focus-visible, .cell:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+input[type=text], input[type=number] {
+  font: inherit; color: var(--text-primary); background: var(--bg-control); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 8px 12px; min-width: 0;
+}
+input[type=number] { width: 72px; font-feature-settings: "tnum", "cv02"; text-align: right; }
+input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
+.field { display: grid; gap: 4px; }
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px 16px; }
+.settings label { display: grid; gap: 4px; color: var(--text-secondary); }
+.settings .unit { color: var(--text-hint); margin-left: 4px; }
+
+.list { display: grid; }
+.list .item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.list .item:first-child { border-top: 0; }
+.list .item .who { min-width: 0; overflow-wrap: anywhere; }
+.rules { margin: 0; padding-left: 20px; color: var(--text-body); display: grid; gap: 8px; max-width: 70ch; }
+
+.board-wrap { min-width: 0; }
+#board { width: 100%; height: auto; display: block; max-width: 720px; margin: 0 auto; }
+#board .frame { fill: none; stroke: var(--border); stroke-width: 1; }
+.cell polygon { fill: var(--bg-control); stroke: var(--border); stroke-width: 1; transition: fill 160ms ease-out; }
+.cell text { fill: var(--text-primary); font-family: var(--font); text-anchor: middle; pointer-events: none; }
+.cell .l { font-size: 22px; font-weight: 400; }
+.cell .n { font-size: 12px; fill: var(--text-hint); font-feature-settings: "tnum"; }
+.cell.A polygon { fill: var(--p-a); stroke: var(--p-a); }
+.cell.A .n { fill: var(--text-secondary); }
+.cell.B polygon { fill: var(--p-b); stroke: var(--p-b); }
+.cell.B text, .cell.B .n { fill: var(--on-b); }
+.cell.X polygon { fill: var(--bg-page); stroke: var(--border-strong); stroke-dasharray: 4 3; }
+.cell.X .l { fill: var(--text-hint); }
+.cell.pick { cursor: pointer; }
+.cell.pick:hover polygon, .cell.pick:focus-visible polygon { fill: var(--bg-hover); stroke: var(--accent-text); }
+.cell:focus-visible { outline: none; }
+.cell.cur polygon { stroke: var(--accent-text); stroke-width: 3; stroke-dasharray: none; }
+.cell.win polygon { stroke: var(--accent-text); stroke-width: 3; }
+.cell.B.win polygon { stroke: var(--accent-fill); }
+
+.players { display: grid; gap: 8px; }
+.player { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; }
+.player svg { width: 24px; height: 24px; }
+.player .nick { overflow-wrap: anywhere; }
+.tag { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-text); }
+.count { font-feature-settings: "tnum", "cv02"; color: var(--text-secondary); text-align: right; min-width: 24px; }
+
+.q { display: grid; gap: 8px; }
+.attempts { display: grid; gap: 8px; }
+.attempt { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--border); }
+.attempt .what { min-width: 0; overflow-wrap: anywhere; }
+.verdict { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.verdict.ok { color: var(--accent-text); } .verdict.no { color: var(--text-hint); }
+
+.timer { display: grid; gap: 4px; }
+.timer svg { width: 100%; height: 12px; display: block; }
+.timer .tick { stroke: var(--border-strong); stroke-width: 1; }
+.timer .track { stroke: var(--border); stroke-width: 1; }
+.timer .fill { stroke: var(--accent-text); stroke-width: 2; }
+.timer .secs { color: var(--text-hint); font-feature-settings: "tnum", "cv02"; }
+
+.log { display: grid; gap: 4px; color: var(--text-secondary); }
+.log .e { display: flex; gap: 8px; align-items: center; }
+.log svg { width: 12px; height: 12px; flex: none; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 16px;
+  max-width: calc(100% - 32px); transition: opacity 160ms ease-out; z-index: 20;
+}
+.code { font-size: 22px; letter-spacing: .12em; font-feature-settings: "tnum", "cv02"; user-select: all; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1 class="title">Tři strany</h1><span class="hint" id="subtitle">Vědomostní duel na trojúhelníku</span></div>
+    <div class="row" id="topright"></div>
+  </header>
+
+  <section id="lobby" class="grid">
+    <div class="c5 stack">
+      <div class="panel">
+        <span class="label">Tvoje přezdívka</span>
+        <input type="text" id="nick" maxlength="24" placeholder="Např. Marek" autocomplete="off">
+      </div>
+      <div class="panel">
+        <span class="label">Nová hra online</span>
+        <p class="hint" id="online-note">Připojuji se…</p>
+        <div class="settings">
+          <label for="s-answer">Čas na odpověď<span><input type="number" id="s-answer" min="5" max="120"><span class="unit">s</span></span></label>
+          <label for="s-steal">Čas pro soupeře<span><input type="number" id="s-steal" min="5" max="120"><span class="unit">s</span></span></label>
+          <label for="s-yesno">Otázka ano/ne<span><input type="number" id="s-yesno" min="5" max="120"><span class="unit">s</span></span></label>
+          <label for="s-reveal">Zobrazit výsledek<span><input type="number" id="s-reveal" min="3" max="60"><span class="unit">s</span></span></label>
+        </div>
+        <div class="row"><button class="btn primary" id="create" data-act="create" disabled>Založit hru</button></div>
+        <div class="row">
+          <input type="text" id="joincode" maxlength="5" placeholder="Kód hry" autocomplete="off" style="width: 120px; text-transform: uppercase">
+          <button class="btn" data-act="joincode" id="joinbtn" disabled>Otevřít</button>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="label">Na jednom počítači</span>
+        <p class="hint">Oba hráči u jedné obrazovky, bez připojení.</p>
+        <div class="row">
+          <input type="text" id="local-a" maxlength="24" placeholder="Hráč 1" autocomplete="off" style="flex: 1 1 120px">
+          <input type="text" id="local-b" maxlength="24" placeholder="Hráč 2" autocomplete="off" style="flex: 1 1 120px">
+        </div>
+        <div class="row"><button class="btn" data-act="local">Začít hru</button></div>
+      </div>
+    </div>
+    <div class="c7 stack">
+      <div class="panel">
+        <span class="label">Hry online</span>
+        <div class="list" id="games"><p class="hint">Načítám…</p></div>
+      </div>
+      <div class="panel">
+        <span class="label">Pravidla</span>
+        <ol class="rules">
+          <li>Deska má 28 polí. Na každém je písmeno, kterým začíná odpověď.</li>
+          <li>Hráč na tahu vybere pole a odpoví. Správně: pole je jeho.</li>
+          <li>Špatně nebo bez odpovědi: zkusit to může soupeř. Když se trefí, pole získá on, jinak pole zčerná.</li>
+          <li>Na černém poli padne otázka ano/ne. Správně: pole je tvoje, špatně: pole dostane soupeř.</li>
+          <li>Po zobrazení výsledku může soupeř uznat odpověď, kterou hra neuznala (třeba jiný tvar slova).</li>
+          <li>Vyhrává, kdo souvislou cestou svých polí spojí všechny tři strany trojúhelníku.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" class="grid" hidden>
+    <div class="c7 board-wrap"><svg id="board" role="group" aria-label="Herní deska"></svg></div>
+    <aside class="c5 stack">
+      <div class="panel players" id="players"></div>
+      <div class="panel" id="phase"></div>
+      <div class="panel" id="logpanel"><span class="label">Průběh</span><div class="log" id="log"></div></div>
+    </aside>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="questions.js"></script>
+<script src="game.js"></script>
+<script src="app.js"></script>

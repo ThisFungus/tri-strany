@@ -1,0 +1,18 @@
+# Tři strany — agent rules
+
+Online two-player quiz (AZ-kvíz-style mechanics, original name and look), published as a claude.ai artifact.
+
+## Deploy
+- Live: https://claude.ai/artifact/2QxxogcR7NAFoUeBrSXnzN. Publish with the Artifact tool: `file_path` = `index.html`, `files` = `{questions.js, game.js, app.js}`, `url` = the link above. Omit `capabilities` on redeploys (declared: `db: {}`, `user: {scopes: ["profile"]}`).
+- `index.html` has no doctype/html/head/body: the artifact skeleton adds them. For local testing wrap it in a throwaway copy with `<meta charset="utf-8">`, serve the folder over http, delete the copy after.
+
+## Architecture
+- `game.js`: pure rules and state transitions (every move returns a new state with `rev+1` or null). Node-testable.
+- `app.js`: UI + sync. Online state = one db doc `games/<CODE>`; each move does get → rev check → set. Spectators never write. Timeouts: responsible client at the deadline, the other player after 2.5 s.
+- `questions.js`: `open: [clue, [answer, ...variants]]`, `yesno: [question, bool]`. Field letter derives from the first answer.
+
+## Decisions (Marek)
+- 2026-11-13: Czech UI and questions. ("Czech (Recommended)")
+- 2026-11-13: Judging = auto-check with typo/diacritics tolerance; opponent can accept a near-miss. ("Auto + override (Recommended)")
+- 2026-11-13: Git commits must not expose the personal email; use the GitHub noreply address. ("set git and make it email-less. I have github")
+- Agent choice: original name/look instead of AZ-kvíz branding; dark house style (app-design skill); single dark theme.
