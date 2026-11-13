@@ -34,7 +34,7 @@
   const getNick = () => $('nick').value.trim().slice(0, 24);
   function readSettings() {
     const v = (id, d, lo, hi) => { const n = parseInt($(id).value, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-    const mode = G.MODES.includes($('s-mode').value) ? $('s-mode').value : 'classic';
+    const mode = G.MODES.includes($('s-mode').value) ? $('s-mode').value : 'semi';
     const s = { mode, answerSec: v('s-answer', 30, 5, 120), stealSec: v('s-steal', 15, 5, 120), yesnoSec: v('s-yesno', 15, 5, 120), revealSec: v('s-reveal', 10, 3, 60) };
     LS.set('ts-settings', s);
     return s;
@@ -515,7 +515,7 @@
   // ---------- boot ----------
   $('nick').value = LS.get('ts-nick', '');
   const st = Object.assign({}, G.DEFAULTS, LS.get('ts-settings', {}));
-  $('s-mode').value = G.MODES.includes(st.mode) ? st.mode : 'classic';
+  $('s-mode').value = G.MODES.includes(st.mode) ? st.mode : 'semi';
   renderSoundBtn();
   $('s-answer').value = st.answerSec; $('s-steal').value = st.stealSec; $('s-yesno').value = st.yesnoSec; $('s-reveal').value = st.revealSec;
   const loc = LS.get('ts-local', ['', '']);

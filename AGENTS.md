@@ -21,4 +21,5 @@ Online two-player quiz (AZ-kvíz-style mechanics, original name and look), publi
 - 2026-11-13: Friends must be able to join from one plain link, no accounts → GitHub Pages + peer-to-peer build alongside the artifact. ("I wanna send them just a simple link" / "Yes, build it")
 - 2026-11-13: Modes besides classic: semifinal and final. ("semifinal has 1-26 numbers, and finals A-Z letters, sorted from the top node"; then "board size is the same" / "Final: A-Z, semifinal 1-26".) A 28-field triangle can't hold 26, so: semifinal 1–28, final 28 Czech letters A B C Č D E F G H CH I J K L M N O P R Ř S Š T U V Y Z Ž from the top. Semifinal shows the answer's letter after the pick (agent default).
 - 2026-11-13: Sounds "similar like in real AZ-kviz": original synthesized cues in `sound.js` (no copied show audio), mute toggle per browser.
+- 2026-11-13: Classic mode (random letters) removed; semifinal is the default. ("Delete this" on the Klasická option)
 - Agent choice: original name/look instead of AZ-kvíz branding; dark house style (app-design skill); single dark theme.

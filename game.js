@@ -63,7 +63,7 @@
   }
 
   const other = p => (p === 'A' ? 'B' : 'A');
-  const DEFAULTS = { mode: 'classic', answerSec: 30, stealSec: 15, yesnoSec: 15, revealSec: 10 };
+  const DEFAULTS = { mode: 'semi', answerSec: 30, stealSec: 15, yesnoSec: 15, revealSec: 10 };
   const clone = s => JSON.parse(JSON.stringify(s));
 
   function shuffle(a) {
@@ -80,10 +80,11 @@
 
   // Final: one letter per field, alphabetical from the top field.
   const FINAL_LETTERS = 'A B C Č D E F G H CH I J K L M N O P R Ř S Š T U V Y Z Ž'.split(' ');
-  const MODES = ['classic', 'semi', 'final'];
+  const MODES = ['semi', 'final'];
 
-  // Prefers questions this browser has not seen. classic: random letters, distinct where possible;
-  // semi: same pick, fields show numbers 1–28; final: field i gets a question for FINAL_LETTERS[i].
+  // Prefers questions this browser has not seen. semi: random questions with distinct answer letters where
+  // possible, fields show numbers 1–28; final: field i gets a question for FINAL_LETTERS[i].
+  // Games saved before 2026-11-13 may still carry mode 'classic'; they render with letters like final.
   function buildBoard(bank, used, mode) {
     const pool = shuffle(bank.slice()).sort((x, y) => (used.has(x[0]) ? 1 : 0) - (used.has(y[0]) ? 1 : 0));
     if (mode === 'final') {
@@ -104,7 +105,7 @@
 
   function newGame({ code, host, settings, bank, used, now }) {
     settings = Object.assign({}, DEFAULTS, settings);
-    if (!MODES.includes(settings.mode)) settings.mode = 'classic';
+    if (!MODES.includes(settings.mode)) settings.mode = 'semi';
     return {
       v: 1, code, rev: 0, status: 'lobby', createdAt: now, updatedAt: now,
       settings,
