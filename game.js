@@ -195,7 +195,9 @@
 
   function rematch(state, code, now, bank, used) {
     const g = newGame({ code, host: state.players.A, settings: state.settings, bank, used, now });
-    return start(g, state.players.B, now, state.winner ? other(state.winner) : undefined);
+    const s = start(g, state.players.B, now, state.winner ? other(state.winner) : undefined);
+    s.rev = 0; // first write of a new doc; writers expect rev 0 for a doc that does not exist yet
+    return s;
   }
 
   const api = { ROWS, CELLS, NB, sideMask, winPath, norm, isCorrect, initial, other, DEFAULTS, makeCode, buildBoard,

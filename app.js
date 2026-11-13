@@ -14,7 +14,7 @@
   const S = {
     db: undefined, user: null, myId: null, mode: 'lobby', game: null,
     unsubGame: null, unsubLobby: null, chain: Promise.resolve(), readOnly: false,
-    lobbyGames: null, confirmed: null, renderedKey: '', timeoutRev: -1, loadTimer: null,
+    lobbyGames: null, confirmed: null, p2p: false, pending: 0, renderedKey: '', timeoutRev: -1, loadTimer: null,
   };
   S.myId = LS.get('ts-id', null);
   if (!S.myId) { S.myId = 'l_' + Math.random().toString(36).slice(2, 12); LS.set('ts-id', S.myId); }
@@ -45,6 +45,12 @@
 
   // ---------- capabilities ----------
   async function initCaps() {
+    if (window.TS_P2P) {
+      S.p2p = true; S.db = window.TS_P2P.db;
+      S.myId = await window.TS_P2P.claimId(S.myId);
+      window.TS_P2P.onStatus(toast);
+      renderLobby(); routeHash(); return;
+    }
     if (!window.claude || typeof window.claude.use !== 'function') { S.db = null; renderLobby(); return; }
     try {
       const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
@@ -88,8 +94,8 @@
   }
 
   function commit(ns) {
-    S.game = ns; renderGame();
-    S.chain = S.chain.then(() => writeState(ns));
+    S.game = ns; renderGame(); S.pending++;
+    S.chain = S.chain.then(() => writeState(ns)).finally(() => { S.pending--; });
   }
 
   function dispatch(ns) {
@@ -99,7 +105,7 @@
 
   // ---------- lobby ----------
   function subscribeLobby() {
-    if (S.unsubLobby || !S.db) return;
+    if (S.unsubLobby || !S.db || S.p2p) return;
     clearTimeout(S.loadTimer);
     S.loadTimer = setTimeout(() => { if (!S.lobbyGames) { $('games').innerHTML = '<p class="hint">Seznam her se zatím nepodařilo načíst. Hru můžeš otevřít i kódem.</p>'; } }, 10000);
     S.unsubLobby = S.db.collection('games').orderBy('updatedAt', 'desc').limit(40).onSnapshot(snap => {
@@ -117,7 +123,8 @@
     if (S.db === undefined) note.textContent = 'Připojuji se…';
     else if (!online) note.textContent = 'Online hra funguje jen na stránce otevřené na claude.ai po přihlášení. Na jednom počítači se dá hrát i tak.';
     else if (S.readOnly) note.textContent = 'Hry můžeš sledovat. Ke hraní potřebuješ od autora stránky přístup Contributor.';
-    else note.textContent = 'Založ hru a pošli kamarádovi kód nebo odkaz.';
+    else note.textContent = S.p2p ? 'Založ hru a pošli kamarádovi odkaz. Hra běží, dokud máš tuto stránku otevřenou.' : 'Založ hru a pošli kamarádovi kód nebo odkaz.';
+    $('games-panel').hidden = S.p2p; $('joinrow').hidden = S.p2p;
     if (!online) { $('games').innerHTML = '<p class="hint">Bez připojení se seznam her nezobrazí.</p>'; return; }
     if (!S.lobbyGames) return;
     const now = Date.now();
@@ -167,7 +174,7 @@
       seen = true; clearTimeout(t);
       if (!snap.exists) { if (!S.game) $('phase').innerHTML = '<p class="hint">Hra s tímto kódem neexistuje.</p>'; return; }
       const g = snap.data();
-      if (S.game && S.game.code === code && g.rev < S.game.rev) return; // our newer write is still in flight
+      if (S.pending && S.game && S.game.code === code && g.rev < S.game.rev) return; // our newer write is still in flight
       S.game = g; S.confirmed = g;
       if (g.next) { openGame(g.next); return; }
       renderGame();
@@ -178,6 +185,7 @@
     const nick = getNick();
     if (!nick) { toast('Nejdřív zadej přezdívku.'); $('nick').focus(); return; }
     const g = G.newGame({ code: G.makeCode(), host: { id: S.myId, nick }, settings: readSettings(), bank: Q.open, used: usedSet(), now: Date.now() });
+    if (S.p2p) window.TS_P2P.create(g.code);
     openGame(g.code, g);
   }
 
@@ -290,6 +298,10 @@
     const role = myRole(g);
     if (g.status === 'lobby') {
       if (role === 'A') {
+        if (S.p2p) {
+          return `<span class="label">Čekáme na soupeře</span><p class="read">Pošli kamarádovi tento odkaz. Nech tuto stránku otevřenou, hra běží u tebe.</p>` +
+            `<div class="row"><span class="read" id="codetext" style="user-select: all; overflow-wrap: anywhere">${esc(window.TS_P2P.linkFor(g.code))}</span><button class="btn" data-act="copy">Kopírovat odkaz</button></div>`;
+        }
         return `<span class="label">Čekáme na soupeře</span><p class="read">Pošli kamarádovi tento kód. Najde ho i v seznamu her na úvodní stránce.</p>` +
           `<div class="row"><span class="code" id="codetext">${esc(g.code)}</span><button class="btn" data-act="copy">Kopírovat kód</button></div>`;
       }
@@ -414,9 +426,10 @@
         break;
       }
       case 'copy': {
-        const done = () => toast('Kód zkopírován.');
-        const fallback = () => { const r = document.createRange(); r.selectNodeContents($('codetext')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Kód je označený, zkopíruj ho.'); };
-        try { navigator.clipboard.writeText(g.code).then(done, fallback); } catch (err) { fallback(); }
+        const text = S.p2p ? window.TS_P2P.linkFor(g.code) : g.code;
+        const done = () => toast(S.p2p ? 'Odkaz zkopírován.' : 'Kód zkopírován.');
+        const fallback = () => { const r = document.createRange(); r.selectNodeContents($('codetext')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Text je označený, zkopíruj ho.'); };
+        try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
         break;
       }
       case 'pass': dispatch(G.submit(g, actor(g), '', now)); break;

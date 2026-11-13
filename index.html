@@ -146,7 +146,7 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
           <label for="s-reveal">Zobrazit výsledek<span><input type="number" id="s-reveal" min="3" max="60"><span class="unit">s</span></span></label>
         </div>
         <div class="row"><button class="btn primary" id="create" data-act="create" disabled>Založit hru</button></div>
-        <div class="row">
+        <div class="row" id="joinrow">
           <input type="text" id="joincode" maxlength="5" placeholder="Kód hry" autocomplete="off" style="width: 120px; text-transform: uppercase">
           <button class="btn" data-act="joincode" id="joinbtn" disabled>Otevřít</button>
         </div>
@@ -162,7 +162,7 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
       </div>
     </div>
     <div class="c7 stack">
-      <div class="panel">
+      <div class="panel" id="games-panel">
         <span class="label">Hry online</span>
         <div class="list" id="games"><p class="hint">Načítám…</p></div>
       </div>
