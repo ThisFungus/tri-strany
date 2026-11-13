@@ -370,7 +370,8 @@
     if (S.mode === 'lobby') return;
     $('topright').innerHTML = `${S.mode === 'online' && g ? `<span class="hint num">Hra ${esc(g.code)}</span>` : ''}<button class="btn ghost" data-act="lobby">Seznam her</button>`;
     if (!g) { $('phase').innerHTML = '<p class="hint">Načítám hru…</p>'; $('players').innerHTML = ''; $('log').innerHTML = ''; return; }
-    $('subtitle').textContent = `${nickOf(g, 'A')} proti ${g.players.B ? nickOf(g, 'B') : '…'}`;
+    $('subtitle').textContent = `${nickOf(g, 'A')} proti ${g.players.B ? nickOf(g, 'B') : '…'}` +
+      (S.mode === 'online' && g.status !== 'lobby' && !myRole(g) ? ' · jen sleduješ' : '');
     const key = `${S.mode}|${g.code}|${g.rev}|${g.updatedAt}|${S.readOnly}`; // equal-rev races differ in updatedAt
     if (!force && key === S.renderedKey) return;
     S.renderedKey = key;

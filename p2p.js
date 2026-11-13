@@ -181,17 +181,23 @@
     };
   }
 
-  // A second tab of the same browser must be a different player, not a clone: the stored id is held by a Web Lock.
-  function claimId(baseId) {
-    const fresh = () => 'l_' + Math.random().toString(36).slice(2, 12);
-    if (!navigator.locks) return Promise.resolve(baseId);
-    return new Promise(res => {
-      navigator.locks.request('ts-id-' + baseId, { ifAvailable: true }, lock => {
-        if (!lock) { res(fresh()); return undefined; }
-        res(baseId);
-        return new Promise(() => {}); // hold for the life of the tab
-      });
-    });
+  // A second tab of the same browser must be a different player, not a clone: each id is held by a Web Lock.
+  // A tab's own extra id lives in sessionStorage so a reload keeps that tab's seat.
+  function lockId(id) {
+    return new Promise(res => navigator.locks.request('ts-id-' + id, { ifAvailable: true }, lock => {
+      res(!!lock);
+      return lock ? new Promise(() => {}) : undefined; // hold for the life of the tab
+    }));
+  }
+  async function claimId(baseId) {
+    if (!navigator.locks) return baseId;
+    let sid = null;
+    try { sid = sessionStorage.getItem('ts-sid'); } catch (e) { /* storage blocked */ }
+    for (const id of [sid, baseId]) if (id && await lockId(id)) return id;
+    const id = 'l_' + Math.random().toString(36).slice(2, 12);
+    try { sessionStorage.setItem('ts-sid', id); } catch (e) { /* storage blocked */ }
+    await lockId(id);
+    return id;
   }
 
   window.TS_P2P = {
