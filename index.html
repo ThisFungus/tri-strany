@@ -57,6 +57,11 @@ input[type=text], input[type=number] {
   font: inherit; color: var(--text-primary); background: var(--bg-control); border: 1px solid var(--border);
   border-radius: var(--r); padding: 8px 12px; min-width: 0;
 }
+select {
+  font: inherit; color: var(--text-primary); background: var(--bg-control); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 8px 12px; max-width: 100%;
+}
+select:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 input[type=number] { width: 72px; font-feature-settings: "tnum", "cv02"; text-align: right; }
 input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
 .field { display: grid; gap: 4px; }
@@ -127,7 +132,7 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
 <div class="wrap">
   <header class="top">
     <div class="brand"><h1 class="title">Tři strany</h1><span class="hint" id="subtitle">Vědomostní duel na trojúhelníku</span></div>
-    <div class="row" id="topright"></div>
+    <div class="row"><div class="row" id="topright"></div><button class="btn ghost" id="soundbtn" data-act="sound"></button></div>
   </header>
 
   <section id="lobby" class="grid">
@@ -137,14 +142,24 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
         <input type="text" id="nick" maxlength="24" placeholder="Např. Marek" autocomplete="off">
       </div>
       <div class="panel">
-        <span class="label">Nová hra online</span>
-        <p class="hint" id="online-note">Připojuji se…</p>
+        <span class="label">Nastavení hry</span>
+        <label class="field sec" for="s-mode">Režim
+          <select id="s-mode">
+            <option value="classic">Klasická: náhodná písmena</option>
+            <option value="semi">Semifinále: čísla 1–28</option>
+            <option value="final">Finále: písmena A–Ž od vrcholu</option>
+          </select>
+        </label>
         <div class="settings">
           <label for="s-answer">Čas na odpověď<span><input type="number" id="s-answer" min="5" max="120"><span class="unit">s</span></span></label>
           <label for="s-steal">Čas pro soupeře<span><input type="number" id="s-steal" min="5" max="120"><span class="unit">s</span></span></label>
           <label for="s-yesno">Otázka ano/ne<span><input type="number" id="s-yesno" min="5" max="120"><span class="unit">s</span></span></label>
           <label for="s-reveal">Zobrazit výsledek<span><input type="number" id="s-reveal" min="3" max="60"><span class="unit">s</span></span></label>
         </div>
+      </div>
+      <div class="panel">
+        <span class="label">Nová hra online</span>
+        <p class="hint" id="online-note">Připojuji se…</p>
         <div class="row"><button class="btn primary" id="create" data-act="create" disabled>Založit hru</button></div>
         <div class="row" id="joinrow">
           <input type="text" id="joincode" maxlength="5" placeholder="Kód hry" autocomplete="off" style="width: 120px; text-transform: uppercase">
@@ -169,7 +184,7 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
       <div class="panel">
         <span class="label">Pravidla</span>
         <ol class="rules">
-          <li>Deska má 28 polí. Na každém je písmeno, kterým začíná odpověď.</li>
+          <li>Deska má 28 polí. V klasické hře a ve finále je na každém poli písmeno, kterým začíná odpověď. V semifinále jsou pole očíslovaná a písmeno se ukáže s otázkou.</li>
           <li>Hráč na tahu vybere pole a odpoví. Správně: pole je jeho.</li>
           <li>Špatně nebo bez odpovědi: zkusit to může soupeř. Když se trefí, pole získá on, jinak pole zčerná.</li>
           <li>Na černém poli padne otázka ano/ne. Správně: pole je tvoje, špatně: pole dostane soupeř.</li>
@@ -193,4 +208,5 @@ input.big { font-size: 16px; line-height: 24px; flex: 1 1 200px; }
 
 <script src="questions.js"></script>
 <script src="game.js"></script>
+<script src="sound.js"></script>
 <script src="app.js"></script>

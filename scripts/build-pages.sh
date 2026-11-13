@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 out=${1:-_site}
 rm -rf "$out"; mkdir -p "$out"
-cp app.js game.js questions.js p2p.js "$out"/
+cp app.js game.js questions.js p2p.js sound.js "$out"/
 {
   printf '<!doctype html>\n<html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>\n'
   sed 's|<script src="questions.js"></script>|<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>\n<script src="p2p.js"></script>\n&|' index.html

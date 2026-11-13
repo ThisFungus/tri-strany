@@ -61,7 +61,7 @@
   }
 
   const other = p => (p === 'A' ? 'B' : 'A');
-  const DEFAULTS = { answerSec: 30, stealSec: 15, yesnoSec: 15, revealSec: 10 };
+  const DEFAULTS = { mode: 'classic', answerSec: 30, stealSec: 15, yesnoSec: 15, revealSec: 10 };
   const clone = s => JSON.parse(JSON.stringify(s));
 
   function shuffle(a) {
@@ -76,9 +76,20 @@
     return s;
   }
 
-  // Prefers questions this browser has not seen, then distinct letters.
-  function buildBoard(bank, used) {
+  // Final: one letter per field, alphabetical from the top field.
+  const FINAL_LETTERS = 'A B C Č D E F G H CH I J K L M N O P R Ř S Š T U V Y Z Ž'.split(' ');
+  const MODES = ['classic', 'semi', 'final'];
+
+  // Prefers questions this browser has not seen. classic: random letters, distinct where possible;
+  // semi: same pick, fields show numbers 1–28; final: field i gets a question for FINAL_LETTERS[i].
+  function buildBoard(bank, used, mode) {
     const pool = shuffle(bank.slice()).sort((x, y) => (used.has(x[0]) ? 1 : 0) - (used.has(y[0]) ? 1 : 0));
+    if (mode === 'final') {
+      return FINAL_LETTERS.map((l, i) => {
+        const q = pool.find(x => initial(x[1][0]) === l) || pool[i];
+        return { n: i + 1, l: initial(q[1][0]), q: q[0], a: q[1], o: null };
+      });
+    }
     const picked = [], letters = new Set();
     for (const q of pool) {
       if (picked.length === CELLS.length) break;
@@ -90,11 +101,13 @@
   }
 
   function newGame({ code, host, settings, bank, used, now }) {
+    settings = Object.assign({}, DEFAULTS, settings);
+    if (!MODES.includes(settings.mode)) settings.mode = 'classic';
     return {
       v: 1, code, rev: 0, status: 'lobby', createdAt: now, updatedAt: now,
-      settings: Object.assign({}, DEFAULTS, settings),
+      settings,
       players: { A: host, B: null },
-      board: buildBoard(bank, used),
+      board: buildBoard(bank, used, settings.mode),
       turn: 'A', phase: 'wait', cur: null, log: [], winner: null, path: null, usedYN: [], next: null,
     };
   }
@@ -200,7 +213,7 @@
     return s;
   }
 
-  const api = { ROWS, CELLS, NB, sideMask, winPath, norm, isCorrect, initial, other, DEFAULTS, makeCode, buildBoard,
+  const api = { FINAL_LETTERS, MODES, ROWS, CELLS, NB, sideMask, winPath, norm, isCorrect, initial, other, DEFAULTS, makeCode, buildBoard,
     newGame, start, pick, submit, toggle, outcome, next, timeout, rematch };
   if (typeof module !== 'undefined') module.exports = api; else root.TS = api;
 })(typeof window !== 'undefined' ? window : globalThis);

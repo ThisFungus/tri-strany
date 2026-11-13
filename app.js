@@ -14,7 +14,7 @@
   const S = {
     db: undefined, user: null, myId: null, mode: 'lobby', game: null,
     unsubGame: null, unsubLobby: null, chain: Promise.resolve(), readOnly: false,
-    lobbyGames: null, confirmed: null, p2p: false, pending: 0, renderedKey: '', timeoutRev: -1, loadTimer: null,
+    lobbyGames: null, confirmed: null, prevGame: null, tickKey: '', p2p: false, pending: 0, renderedKey: '', timeoutRev: -1, loadTimer: null,
   };
   S.myId = LS.get('ts-id', null);
   if (!S.myId) { S.myId = 'l_' + Math.random().toString(36).slice(2, 12); LS.set('ts-id', S.myId); }
@@ -34,7 +34,8 @@
   const getNick = () => $('nick').value.trim().slice(0, 24);
   function readSettings() {
     const v = (id, d, lo, hi) => { const n = parseInt($(id).value, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-    const s = { answerSec: v('s-answer', 30, 5, 120), stealSec: v('s-steal', 15, 5, 120), yesnoSec: v('s-yesno', 15, 5, 120), revealSec: v('s-reveal', 10, 3, 60) };
+    const mode = G.MODES.includes($('s-mode').value) ? $('s-mode').value : 'classic';
+    const s = { mode, answerSec: v('s-answer', 30, 5, 120), stealSec: v('s-steal', 15, 5, 120), yesnoSec: v('s-yesno', 15, 5, 120), revealSec: v('s-reveal', 10, 3, 60) };
     LS.set('ts-settings', s);
     return s;
   }
@@ -151,7 +152,7 @@
 
   function showLobby() {
     if (S.unsubGame) { S.unsubGame(); S.unsubGame = null; }
-    S.mode = 'lobby'; S.game = null; S.renderedKey = '';
+    S.mode = 'lobby'; S.game = null; S.prevGame = null; S.renderedKey = '';
     $('game').hidden = true; $('lobby').hidden = false; $('topright').innerHTML = '';
     $('subtitle').textContent = 'Vědomostní duel na trojúhelníku';
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -195,6 +196,7 @@
     const g = G.newGame({ code: 'LOCAL', host: { id: 'local-A', nick: a }, settings: readSettings(), bank: Q.open, used: usedSet(), now: Date.now() });
     if (S.unsubLobby) { S.unsubLobby(); S.unsubLobby = null; }
     S.mode = 'local'; S.renderedKey = '';
+    S.prevGame = g;
     S.game = G.start(g, { id: 'local-B', nick: b }, Date.now());
     $('lobby').hidden = true; $('game').hidden = false;
     renderGame(true);
@@ -231,6 +233,7 @@
     svg.setAttribute('viewBox', `0 ${-HEX * 0.9} ${BW} ${frameH}`);
     const pickable = g.status === 'playing' && g.phase === 'pick' && can(g, g.turn);
     const path = new Set(g.path || []);
+    const semi = g.settings.mode === 'semi'; // semifinal fields show their number; the letter appears with the question
     svg.innerHTML = frame() + g.board.map((cell, i) => {
       const [x, y] = center(i);
       const cls = ['cell'];
@@ -239,11 +242,11 @@
       if (canPick) cls.push('pick');
       if (g.cur && g.cur.i === i) cls.push('cur');
       if (path.has(i)) cls.push('win');
-      const label = `Pole ${esc(cell.n)}, písmeno ${cell.l}` + (cell.o === 'A' || cell.o === 'B' ? `, patří ${nickOf(g, cell.o)}` : cell.o === 'X' ? ', černé' : '');
+      const label = `Pole ${cell.n}` + (semi ? '' : `, písmeno ${cell.l}`) + (cell.o === 'A' || cell.o === 'B' ? `, patří ${nickOf(g, cell.o)}` : cell.o === 'X' ? ', černé' : '');
       return `<g class="${cls.join(' ')}" data-cell="${i}" ${canPick ? 'tabindex="0" role="button"' : ''} aria-label="${esc(label)}">` +
         `<polygon points="${hexPts(x, y, HEX - 2)}"/>` +
-        `<text class="n" x="${x.toFixed(1)}" y="${(y - 14).toFixed(1)}">${esc(cell.n)}</text>` +
-        `<text class="l" x="${x.toFixed(1)}" y="${(y + 14).toFixed(1)}">${cell.o === 'X' ? '?' : esc(cell.l)}</text></g>`;
+        (semi ? '' : `<text class="n" x="${x.toFixed(1)}" y="${(y - 14).toFixed(1)}">${esc(cell.n)}</text>`) +
+        `<text class="l" x="${x.toFixed(1)}" y="${(y + (semi ? 8 : 14)).toFixed(1)}">${semi ? esc(cell.n) : cell.o === 'X' ? '?' : esc(cell.l)}</text></g>`;
     }).join('');
   }
 
@@ -370,17 +373,41 @@
     if (S.mode === 'lobby') return;
     $('topright').innerHTML = `${S.mode === 'online' && g ? `<span class="hint num">Hra ${esc(g.code)}</span>` : ''}<button class="btn ghost" data-act="lobby">Seznam her</button>`;
     if (!g) { $('phase').innerHTML = '<p class="hint">Načítám hru…</p>'; $('players').innerHTML = ''; $('log').innerHTML = ''; return; }
-    $('subtitle').textContent = `${nickOf(g, 'A')} proti ${g.players.B ? nickOf(g, 'B') : '…'}` +
+    const modeName = { semi: 'Semifinále · ', final: 'Finále · ' }[g.settings.mode] || '';
+    $('subtitle').textContent = `${modeName}${nickOf(g, 'A')} proti ${g.players.B ? nickOf(g, 'B') : '…'}` +
       (S.mode === 'online' && g.status !== 'lobby' && !myRole(g) ? ' · jen sleduješ' : '');
     const key = `${S.mode}|${g.code}|${g.rev}|${g.updatedAt}|${S.readOnly}`; // equal-rev races differ in updatedAt
     if (!force && key === S.renderedKey) return;
     S.renderedKey = key;
+    window.TS_SOUND.play(cueFor(S.prevGame, g));
+    S.prevGame = g;
     const draft = $('ans') && $('ans').value;
     renderBoard(g); renderPlayers(g); renderLog(g);
     $('phase').innerHTML = phaseHTML(g);
     const inp = $('ans');
     if (inp) { if (draft && force) inp.value = draft; inp.focus({ preventScroll: true }); }
     tick();
+  }
+
+  // ---------- sound ----------
+  // Derived from state changes, so every client (players and spectators) hears the same cues.
+  function cueFor(p, g) {
+    if (!p) return null;
+    if (p.code !== g.code) return g.status === 'playing' ? 'start' : null;
+    if (p.status !== 'playing' && g.status === 'playing') return 'start';
+    if (g.status === 'done' && p.status !== 'done') return 'win';
+    if (p.phase === 'pick' && (g.phase === 'answer' || g.phase === 'yesno')) return 'pick';
+    if (g.phase === 'steal' && p.phase !== 'steal') return 'steal';
+    const okCount = s => (s.cur ? s.cur.attempts.filter(a => a.ok).length : 0);
+    if (g.phase === 'reveal' && p.phase !== 'reveal') return okCount(g) ? 'correct' : 'wrong';
+    if (g.phase === 'reveal' && okCount(g) > okCount(p)) return 'correct';
+    if (p.phase === 'reveal' && g.phase === 'pick' && p.cur && g.board[p.cur.i].o === 'X') return 'black';
+    return null;
+  }
+
+  function renderSoundBtn() {
+    $('soundbtn').textContent = window.TS_SOUND.muted ? 'Zvuk vypnutý' : 'Zvuk zapnutý';
+    $('soundbtn').setAttribute('aria-pressed', String(!window.TS_SOUND.muted));
   }
 
   // ---------- timer + timeouts ----------
@@ -391,6 +418,8 @@
     const fill = $('tfill'), secs = $('tsecs');
     if (fill) fill.setAttribute('x2', `${Math.max(0, Math.min(1, left / total)) * 100}%`);
     if (secs) secs.textContent = `${Math.max(0, Math.ceil(left / 1000))} s`;
+    const sec = Math.ceil(left / 1000), tickKey = `${g.code}:${g.rev}:${sec}`;
+    if (g.phase !== 'reveal' && sec > 0 && sec <= 5 && S.tickKey !== tickKey) { S.tickKey = tickKey; window.TS_SOUND.play('tick'); }
     let grace;
     if (S.mode === 'local') grace = 0;
     else if (!isPlayer(g)) return;
@@ -415,6 +444,7 @@
     const g = S.game, now = Date.now();
     switch (b.dataset.act) {
       case 'create': createOnline(); break;
+      case 'sound': window.TS_SOUND.setMuted(!window.TS_SOUND.muted); renderSoundBtn(); break;
       case 'joincode': openGame($('joincode').value.trim()); break;
       case 'open': openGame(b.dataset.code); break;
       case 'local': startLocal(); break;
@@ -465,6 +495,8 @@
   // ---------- boot ----------
   $('nick').value = LS.get('ts-nick', '');
   const st = Object.assign({}, G.DEFAULTS, LS.get('ts-settings', {}));
+  $('s-mode').value = G.MODES.includes(st.mode) ? st.mode : 'classic';
+  renderSoundBtn();
   $('s-answer').value = st.answerSec; $('s-steal').value = st.stealSec; $('s-yesno').value = st.yesnoSec; $('s-reveal').value = st.revealSec;
   const loc = LS.get('ts-local', ['', '']);
   $('local-a').value = loc[0]; $('local-b').value = loc[1];
